@@ -4,6 +4,7 @@
 import bpy
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import *
+from bpy.utils import unregister_class
 from .yabee_libs import egg_writer
 
 bl_info = {
@@ -462,8 +463,14 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export)
+    # https://blender.stackexchange.com/questions/123611/registering-classes-in-blender-2-8
+    # https://developer.blender.org/docs/release_notes/2.80/python_api/addons/
+    # bpy.utils.unregister_module(__name__)
+    for cls in reversed(classes):
+        unregister_class(cls)
+    # bpy.types.INFO_MT_file_export.remove(menu_func_export)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
+
     del (__builtins__['p3d_egg_export'])
 
 
