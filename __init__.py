@@ -459,7 +459,10 @@ def register():
     bpy.types.Bone.yabee_name = StringProperty(name = "YABEE_Name", default = "Unknown")
     bpy.types.PoseBone.yabee_name = StringProperty(name = "YABEE_Name", default = "Unknown")
 
-    bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
+    if bpy.app.version < (2, 80):
+        bpy.types.INFO_MT_file_export.append(menu_func_export)
+    else:
+        bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
     # Add link for export function to use in another addon
     __builtins__['p3d_egg_export'] = egg_writer.write_out
 
@@ -467,11 +470,14 @@ def register():
 def unregister():
     # https://blender.stackexchange.com/questions/123611/registering-classes-in-blender-2-8
     # https://developer.blender.org/docs/release_notes/2.80/python_api/addons/
-    # bpy.utils.unregister_module(__name__)
-    for cls in reversed(classes):
-        unregister_class(cls)
-    # bpy.types.INFO_MT_file_export.remove(menu_func_export)
-    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
+    if bpy.app.version < (2, 80):
+        bpy.utils.unregister_module(__name__)
+        bpy.types.INFO_MT_file_export.remove(menu_func_export)
+    else:
+        for cls in reversed(classes):
+            unregister_class(cls)
+            bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
+
 
     del (__builtins__['p3d_egg_export'])
 
