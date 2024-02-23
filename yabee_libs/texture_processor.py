@@ -1,19 +1,17 @@
-""" Part of the YABEE
-"""
-
 import bpy
 import shutil
 
 if __name__ != '__main__':
     from .utils import convertFileNameToPanda, save_image
 
-BAKE_TYPES = {'diffuse': ('TEXTURE', 'MODULATE'),
-              'normal': ('NORMALS', 'NORMAL'),
-              'gloss': ('SPEC_INTENSITY', 'GLOSS'),
-              'glow': ('EMIT', 'GLOW'),
-              'AO': ('AO', 'MODULATE'),
-              'shadow': ('SHADOW', 'MODULATE')
-              }
+BAKE_TYPES = {
+    'diffuse': ('TEXTURE', 'MODULATE'),
+    'normal': ('NORMALS', 'NORMAL'),
+    'gloss': ('SPEC_INTENSITY', 'GLOSS'),
+    'glow': ('EMIT', 'GLOW'),
+    'AO': ('AO', 'MODULATE'),
+    'shadow': ('SHADOW', 'MODULATE')
+}
 
 
 class PbrTextures:
@@ -25,12 +23,14 @@ class PbrTextures:
         self.tex_path = tex_path
 
     def get_used_textures(self):
-        """ Collect images from the UV images and Material texture slots
+        """
+        Collect images from the UV images and Material texture slots
             tex_list structure:
-            image_name: { 'scalars': [(name, val), (name, val), ...],
-                          'path': 'path/to/texture',
-                          'transform': [(type, val), (type, val), ...]
-                        }
+            image_name: {
+                'scalars': [(name, val), (name, val), ...],
+                'path': 'path/to/texture',
+                'transform': [(type, val), (type, val), ...]
+            }
         """
         tex_list = {}
         print(self.obj_list)
@@ -39,18 +39,20 @@ class PbrTextures:
                 print("Processing object", obj)
                 # General textures
                 handled = set()
-                for f in obj.data.polygons:
+                for face in obj.data.polygons:
                     # print("processing polygon", f)
-                    if f.material_index < len(obj.data.materials):
+                    if face.material_index < len(obj.data.materials):
                         # print("found material index")
-                        mat = obj.data.materials[f.material_index]
+                        mat = obj.data.materials[face.material_index]
                         if not mat or mat in handled:
                             continue
                         # print("found new material")
                         handled.add(mat)
 
-                        nodeNames = {"Base Color": None,
-                                     "Normal": None}
+                        nodeNames = {
+                            "Base Color": None,
+                            "Normal": None
+                        }
                         # let's crawl all links, find the ones connected to the PandaPBRNode,
                         # find the connected textures, use them.
                         for link in mat.node_tree.links:
@@ -64,31 +66,36 @@ class PbrTextures:
                                     textureNode = link.from_node
 
                                     if hasattr(textureNode, 'image'):
-                                        if textureNode.image == None:
-                                            print("WARNING: Texture node has no image assigned!", obj.name,
-                                                  link.to_socket.name)
+                                        if not textureNode.image:
+                                            print(
+                                                "WARNING: Texture node has no image assigned!",
+                                                obj.name,
+                                                link.to_socket.name
+                                            )
 
                                         scalars = []
 
-                                        if (link.to_socket.name == 'Base Color'
-                                                and link.to_node.inputs[0].is_linked):
+                                        if link.to_socket.name == 'Base Color' and link.to_node.inputs[0].is_linked:
                                             scalars.append(('envtype', 'MODULATE'))
 
-                                        elif (link.to_socket.name == 'Normal'
-                                              and link.from_node.outputs[0].is_linked):
+                                        elif link.to_socket.name == 'Normal' and link.from_node.outputs[0].is_linked:
                                             scalars.append(('envtype', 'NORMAL'))
 
                                         # Make unique named Image Texture node by assigning the texture name
                                         # so we can use multiple textures for multimeshed object
                                         if textureNode.name:
                                             textureNode.name = textureNode.image.name
-                                            print("INFO: {} node is renamed to {}".format(textureNode.name,
-                                                                                          textureNode.image.name))
+                                            print("INFO: {} node is renamed to {}".format(
+                                                textureNode.name,
+                                                textureNode.image.name
+                                            ))
 
-                                        if (textureNode.inputs[0].is_linked is False
-                                                and textureNode.image):
-                                            print("WARNING: Texture has no UV-INPUT!", obj.name,
-                                                  link.to_socket.name)
+                                        if textureNode.inputs[0].is_linked is False and textureNode.image:
+                                            print(
+                                                "WARNING: Texture has no UV-INPUT!",
+                                                obj.name,
+                                                link.to_socket.name
+                                            )
                                             print("INFO: Adding UV Map from the material:", obj.name)
                                             a = [uv for uv in obj.data.uv_layers if uv.active]
                                             uv_map = [x.name for x in a]
@@ -109,7 +116,9 @@ class PbrTextures:
 
                                         t_path = textureNode.image.filepath
                                         if self.copy_tex:
-                                            t_path = save_image(textureNode.image, self.file_path, self.tex_path)
+                                            img_tex = save_image(textureNode.image, self.file_path, self.tex_path)
+                                            if img_tex:
+                                                t_path = img_tex
 
                                         transform = []
 
@@ -133,11 +142,18 @@ class PbrTextures:
 
                                         # Process coordinate mapping using a matrix.
                                         mappings = (
-                                            textureNode.texture_mapping.mapping_x, textureNode.texture_mapping.mapping_y,
-                                            textureNode.texture_mapping.mapping_z)
+                                            textureNode.texture_mapping.mapping_x,
+                                            textureNode.texture_mapping.mapping_y,
+                                            textureNode.texture_mapping.mapping_z
+                                        )
 
                                         if mappings != ('X', 'Y', 'Z'):
-                                            matrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                                            matrix = [
+                                                0, 0, 0, 0,
+                                                0, 0, 0, 0,
+                                                0, 0, 0, 0,
+                                                0, 0, 0, 1
+                                            ]
 
                                             for col, mapping in enumerate(mappings):
                                                 if mapping == 'Z':
@@ -166,8 +182,11 @@ class PbrTextures:
                                             transform.append(('Translate', textureNode.texture_mapping.translation))
 
                                         # finally add everything to the list
-                                        tex_list[textureNode.name] = {'path': t_path,
-                                                                      'scalars': scalars, 'transform': transform}
+                                        tex_list[textureNode.name] = {
+                                            'path': t_path,
+                                            'scalars': scalars,
+                                            'transform': transform
+                                        }
                                 else:
                                     print("WARNING: The Panda3D compatible Principled BSDF shader not found. "
                                           "Texture was not exported!")
@@ -188,11 +207,13 @@ class TextureBaker:
         auv = [uv for uv in obj.data.uv_layers if uv.active]
         if auv:
             return auv[0]
-        else:
-            return None
 
     def _save_obj_props(self, obj):
-        props = {'uvs': [], 'textures': {}, 'active_uv': None}
+        props = {
+            'uvs': [],
+            'textures': {},
+            'active_uv': None
+        }
         active_uv = self.get_active_uv(obj)
         if active_uv:
             props['active_uv'] = active_uv
@@ -330,8 +351,9 @@ if __name__ == '__main__':
 
 
     def convertFileNameToPanda(filename):
-        """ (Get from Chicken) Converts Blender filenames to Panda 3D filenames.
-      """
+        """
+        (Get from Chicken) Converts Blender filenames to Panda 3D filenames.
+        """
         path = filename.replace('//', './').replace('\\', '/')
         if os.name == 'nt' and path.find(':') != -1:
             path = '/{}{}'.format(path[0].lower(), path[2:])

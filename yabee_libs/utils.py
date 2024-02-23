@@ -1,14 +1,12 @@
-"""
-    Part of the YABEE
-"""
 import bpy
 import os
 import bpy_extras
 
 
 def convertFileNameToPanda(filename):
-    """ (Get from Chicken) Converts Blender filenames to Panda 3D filenames.
-  """
+    """
+    (Get from Chicken) Converts Blender filenames to Panda 3D filenames.
+    """
     path = filename.replace('//', './').replace('\\', '/')
     if os.name == 'nt' and path.find(':') != -1:
         path = '/' + path[0].lower() + path[2:]
@@ -67,8 +65,9 @@ def get_active_uv(obj):
 
 
 def eggSafeName(s):
-    """ (Get from Chicken) Function that converts names into something
-    suitable for the egg file format - simply puts " around names that
+    """
+    (Get from Chicken) Function that converts names into something
+    suitable for the egg file format - simply puts quotations around names that
     contain spaces and prunes bad characters, replacing them with an
     underscore.
     """
