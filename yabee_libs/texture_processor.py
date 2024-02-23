@@ -238,7 +238,7 @@ class TextureBaker:
             img = bpy.data.images[iname]
             img.user_clear()
             bpy.data.images.remove(img)
-        self.rendred_images = []
+        self.rendered_images = []
 
     def _save_rendered(self, spath):
         for oname, iname in self.rendered_images.items():
@@ -304,15 +304,17 @@ class TextureBaker:
                         # img_path = bpy.app.tempdir + val[1].name + '.' + bpy.context.scene.render.file_format.lower()
                         # print('+++' + str(paths))
                         envtype = val[3]
-                        if paths:
+                        if paths and paths.get(key):
                             img_path = paths[key]
                         else:
                             img_path = self.tex_path + val[1].name + '.' + bpy.context.scene.render.file_format.lower()
                         # tex_list[key] = (uv_name, img_path, envtype)
                         # Texture information dict
-                        tex_list[key] = {'path': img_path,
-                                         'scalars': [],
-                                         'transform': []}
+                        tex_list[key] = {
+                            'path': img_path,
+                            'scalars': [],
+                            'transform': []
+                        }
                         tex_list[key]['scalars'].append(('envtype', envtype))
                         if uv_name:
                             tex_list[key]['scalars'].append(('uv-name', uv_name))
@@ -337,6 +339,10 @@ if __name__ == '__main__':
 
 
     def save_image(img, file_path, text_path):
+        # If we don't have any data for our image there is no point trying to save it
+        # Happens when there are broken image paths in file somewhere
+        if not img.has_data:
+            return
         oldpath = bpy.path.abspath(img.filepath)
         old_dir, old_f = os.path.split(convertFileNameToPanda(oldpath))
         f_names = [s.lower() for s in old_f.split('.')]
@@ -365,7 +371,6 @@ if __name__ == '__main__':
                     img.filepath = os.path.abspath(os.path.join(new_dir, old_f))
                     print('SAVE IMAGE to %s; rel path: %s' % (img.filepath, rel_path))
                     img.save()
-                    img.filepath == oldpath
         return rel_path
 
 
