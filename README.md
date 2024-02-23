@@ -1,8 +1,12 @@
 ![logo](img/logo.png)
 
-Modernized Alternative (of) Yet Another Blender Egg Exporter (MAYABEE)
+Modernized Alternative (of) Yet Another Blender Egg Exporter (MAYBEE)
 ==============================================================
-MAYABEE (or MAYBEE for short) is a fork of the Yet Another Blender Egg Exporter (YABEE) plugin. It is a renewed Panda3D Egg file exporter for Blender that supports versions >=2.7+
+*Technically MAYABEE, but I don't want to call it that.*
+
+----------------------------------
+
+MAYABEE is a fork of the Yet Another Blender Egg Exporter (YABEE) plugin. It is a renewed Panda3D Egg file exporter for Blender that supports versions >=2.7+
 
 With dozens of outdated YABEE repositories, it's hard to find which version supports modern versions of Blender. MAYBEE sticks out from the outdated YABEE variants.
 
