@@ -13,6 +13,8 @@ lib_name = '.'.join(__name__.split('.')[:-1])
 importlib.reload(sys.modules[lib_name + '.texture_processor'])
 importlib.reload(sys.modules[lib_name + '.utils'])
 
+
+
 FILE_PATH = None
 ANIMATIONS = None
 EXPORT_UV_IMAGE_AS_TEXTURE = None
@@ -33,6 +35,8 @@ STRF = lambda x: '%.6f' % x
 USED_MATERIALS = None
 USED_TEXTURES = None
 
+AUTOSELECT = None
+
 # const used to pack string array into StringProperty
 NAME_SEPARATOR = "\1"
 
@@ -43,6 +47,9 @@ class Group:
     """
 
     def __init__(self, obj, arm_owner=None):
+        # Gagaga this is HARAM!!!
+        self.yabee_conf = bpy.context.scene.yabee_settings
+
         self.object = obj  #: Link to the blender's object
         self._yabee_object = None  # Internal data
         self.children = []  #: List of children (Groups)
@@ -82,7 +89,6 @@ class Group:
         for child in self.children:
             child.update_joints_data(actor_data_list)
 
-
     def check_parenting(self, p, o, obj_list):
         # 0 - Not
         # 1 - Object to object
@@ -105,8 +111,6 @@ class Group:
                 and p and o.parent_bone == p.name:
             return 3
         return 0
-
-
 
     def make_hierarchy_from_list(self, obj_list):
         """
@@ -252,6 +256,9 @@ class EGGBaseObjectData:
     """
 
     def __init__(self, obj):
+        # Gagaga this is HARAM!!!
+        self.yabee_conf = bpy.context.scene.yabee_settings
+
         self.obj_ref = obj
         if obj.parent:
             self.transform_matrix = obj.matrix_local
@@ -654,8 +661,11 @@ class EGGMeshObjectData(EGGBaseObjectData):
             if self.tangent_layers:
                 tbs = '\n    <Tangent> {%f %f %f}\n    <Binormal> {%f %f %f}' % self.tangent_layers[i][ividx]
 
-            uv_str = '  <UV> %s {\n    %f %f %s\n  }' % (
-                eggSafeName(name), data[ividx][0], data[ividx][1], tbs
+
+            uv_name = '' if (not self.yabee_conf.opt_export_uv_name) else eggSafeName(name) + " "
+
+            uv_str = '  <UV> %s{\n    %f %f %s\n  }' % (
+                uv_name, data[ividx][0], data[ividx][1], tbs
             )
             attributes.append(uv_str)
 
@@ -1489,14 +1499,272 @@ def generate_shadow_uvs():
 # -----------------------------------------------------------------------
 #                           WRITE OUT
 # -----------------------------------------------------------------------
-def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
-              copy_tex, t_path, tbs, tex_processor, b_layers,
-              m_actor, apply_m, pview, loop_normals, export_pbs, force_export_vertex_colors, objects=None):
+
+def write_out_new(filepath, settings):
+    importlib.reload(sys.modules[lib_name + '.texture_processor'])
+    importlib.reload(sys.modules[lib_name + '.utils'])
+    errors = []
+    s_acc = '%.6f'
+    opt_texbake_layers = settings.get_bake_dict()
+    opt_used_materials = None
+    opt_used_textures = None
+    opt_animations = settings.opt_anim_list.get_anim_dict()
+    opt_post_run_pview = settings.opt_pview
+    FILE_PATH = filepath
+
+    global TEXTURE_PROCESSOR, USED_TEXTURES
+    TEXTURE_PROCESSOR = settings.opt_tex_proc
+    USED_TEXTURES = settings.opt_anim_list
+
+    if settings.opt_autoselect:
+        bpy.ops.object.select_all(action = 'SELECT')
+
+    def str_f(x):
+        return s_acc % x
+
+    STRF = str_f
+    # Prepare copy of the scene.
+    # Sync objects names with custom property "yabee_name" to be able to get basic object name in the copy of the scene.
+    # selected_obj = [obj.name for obj in bpy.context.selected_objects if obj.type != 'ARMATURE']
+
+    # i'm not sure if objects is ever not None
+    selected_obj = None
+    if not selected_obj:
+        selected_obj = [obj.name for obj in bpy.context.selected_objects]
+
+    for obj in bpy.data.objects:
+        obj.yabee_name = obj.name
+
+    for item in (bpy.data.meshes, bpy.data.textures, bpy.data.curves, bpy.data.shape_keys, bpy.data.images):
+        for obj in item:
+            obj.yabee_name = obj.name
+
+    # Looping the node tree to get texture and its name
+    for mat in bpy.data.materials:
+        mat.yabee_name = mat.name
+        ms_names = []
+        for obj in bpy.data.objects:
+            for mat_slot in obj.material_slots:
+                if mat_slot.material and mat_slot.material.node_tree:
+                    for tex in mat_slot.material.node_tree.nodes:
+                        if tex.type == 'TEX_IMAGE':
+                            ms_names.append(tex.image and tex.image.name or "")
+
+    for arm in bpy.data.armatures:
+        arm.yabee_name = arm.name
+        for bone in arm.bones:
+            bone.yabee_name = bone.name
+
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'ARMATURE':
+            for bone in obj.pose.bones:
+                bone.yabee_name = bone.name
+
+    old_data = {}
+    for data in (bpy.data.materials, bpy.data.objects, bpy.data.textures,
+                 bpy.data.armatures, bpy.data.actions, bpy.data.brushes,
+                 bpy.data.cameras, bpy.data.curves, bpy.data.collections,
+                 bpy.data.images, bpy.data.lights, bpy.data.meshes,
+                 bpy.data.metaballs, bpy.data.movieclips,
+                 bpy.data.node_groups, bpy.data.particles, bpy.data.screens,
+                 bpy.data.shape_keys, bpy.data.sounds,
+                 bpy.data.speakers, bpy.data.texts, bpy.data.window_managers,
+                 bpy.data.worlds, bpy.data.grease_pencils):
+        old_data[data] = data[:]
+
+    # we need this?
+    precopy_obj_list = None
+
+    if settings.opt_use_loop_normals:
+        # even obj.data.copy() will not contain loop normals
+        precopy_obj_list = [obj for obj in bpy.context.scene.objects if obj.yabee_name in selected_obj]
+
+    bpy.ops.scene.new(type = 'FULL_COPY')
+    try:
+        obj_list = [obj for obj in bpy.context.scene.objects if obj.yabee_name in selected_obj]
+        if settings.opt_use_loop_normals:
+            for old, new in zip(precopy_obj_list, obj_list):
+                if old.type != "MESH":
+                    continue
+                print("{} has custom normals!".format(
+                    old.name) if old.data.has_custom_normals else "{} has no custom normals.".format(old.name))
+                bpy.context.scene.objects.active = new
+                bpy.ops.object.modifier_add(type = 'DATA_TRANSFER')
+                bpy.context.object.modifiers["DataTransfer"].object = old
+                bpy.context.object.modifiers["DataTransfer"].use_loop_data = True
+                # bpy.context.object.modifiers["DataTransfer"].loop_mapping = 'POLYINTERP_LNORPROJ'
+                bpy.context.object.modifiers["DataTransfer"].loop_mapping = 'TOPOLOGY'
+                bpy.context.object.modifiers["DataTransfer"].data_types_loops = {'CUSTOM_NORMAL'}
+                bpy.ops.object.modifier_apply(apply_as = 'DATA', modifier = "DataTransfer")
+                new.data.calc_normals_split()
+
+        if settings.opt_tbs_proc == 'BLENDER':
+            for obj in obj_list:
+                if not hasattr(obj.data, "polygons"):
+                    print('WARNING: Skipping non-geometry object:', obj.name)
+                    continue
+
+                for face in obj.data.polygons:
+                    if len(face.vertices) > 4:
+                        obj.modifiers.new('triangulate_for_TBS', 'TRIANGULATE')
+                        print('WARNING:TBS: Triangulate %s to avoid non tris/quads polygons' % obj.yabee_name)
+                        bpy.context.scene.objects.active = obj
+                        bpy.ops.object.modifier_apply(modifier = 'triangulate_for_TBS')
+                        break
+
+        if settings.opt_apply_modifiers:
+            apply_modifiers(obj_list)
+
+        reparenting_to_armature(obj_list)
+        # parented_to_armatured()
+        # if MERGE_ACTOR_MESH:
+        #    merge_objects()
+        if bpy.ops.object.mode_set.poll():
+            bpy.ops.object.mode_set(mode = 'OBJECT')
+
+        # Generate UV layers for shadows
+        if opt_texbake_layers and (opt_texbake_layers['AO'][2] or opt_texbake_layers['shadow'][2]):
+            generate_shadow_uvs()
+
+        gr = Group(None)
+
+        included_armature = []
+        for obj in bpy.context.scene.objects:
+            if obj.yabee_name in selected_obj:
+                for mod in obj.modifiers:
+                    if mod and mod.type == 'ARMATURE' \
+                            and mod.object not in included_armature \
+                            and mod.object not in obj_list:
+                        included_armature.append(mod.object)
+                if obj.parent and obj.parent_type == 'BONE' \
+                        and obj.parent not in included_armature \
+                        and obj.parent not in obj_list:
+                    included_armature.append(obj.parent)
+
+        obj_list += included_armature
+        # print("DEBUG: ", obj_list)
+        print('Objects for export:', [obj.yabee_name for obj in obj_list])
+
+        errors += gr.make_hierarchy_from_list(obj_list)
+        if not errors:
+            # gr.print_hierarchy()
+            gr.update_joints_data()
+
+            fdir, fname = os.path.split(os.path.abspath(FILE_PATH))
+            if not os.path.exists(fdir):
+                print('PATH %s not exist. Trying to make path' % fdir)
+                os.makedirs(fdir)
+
+            # === write egg data ===
+            print('WRITE main EGG to %s' % os.path.abspath(FILE_PATH))
+            if ((not settings.opt_anim_only) or (not settings.opt_separate_anim_files)):
+                file = open(FILE_PATH, 'w')
+            if not settings.opt_anim_only:
+                file.write('<CoordinateSystem> { Z-up } \n')
+                materials_str, opt_used_materials, opt_used_textures = get_egg_materials_str(selected_obj)
+                file.write(materials_str)
+                file.write(gr.get_full_egg_str())
+
+            anim_collectors = []
+            if settings.opt_anims_from_actions:
+                # Export an animation for each action.
+                fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
+
+                for action in bpy.data.actions:
+                    frange = action.frame_range
+                    ac = AnimCollector(obj_list, int(frange[0]), int(frange[1]), fps, action.name, action)
+                    anim_collectors.append(ac)
+            else:
+                # Export animations named in ANIMATIONS dictionary.
+                for a_name, frames in opt_animations.items():
+                    ac = AnimCollector(obj_list, frames[0], frames[1], frames[2], a_name)
+                    anim_collectors.append(ac)
+
+            fpa = []
+            for anim_collector in anim_collectors:
+                if not settings.opt_separate_anim_files:
+                    if settings.opt_anim_only:
+                        file.write('<CoordinateSystem> { Z-up } \n')
+                    file.write(anim_collector.get_full_egg_str())
+                else:
+                    anim_path = FILE_PATH
+                    if anim_path[-4:].upper() == '.EGG':
+                        anim_path = anim_path[:-4] + '-' + anim_collector.name + anim_path[-4:]
+                    else:
+                        anim_path = anim_path + '-' + anim_collector.name + '.egg'
+                    a_egg_str = anim_collector.get_full_egg_str()
+                    if len(a_egg_str) > 0:
+                        a_file = open(anim_path, 'w')
+                        a_file.write('<CoordinateSystem> { Z-up } \n')
+                        a_file.write(anim_collector.get_full_egg_str())
+                        a_file.close()
+                        fpa.append(anim_path)
+
+            if not settings.opt_anim_only or not settings.opt_separate_anim_files:
+                file.close()
+
+            if settings.opt_tbs_proc == 'PANDA':
+                try:
+                    fp = os.path.abspath(FILE_PATH)
+                    for line in os.popen('egg-trans -tbnall -ps keep -o "%s" "%s"' % (fp, fp)).readlines():
+                        print(line)
+                except:
+                    print('ERROR: Can\'t calculate TBS through panda\'s egg-trans')
+            if opt_post_run_pview:
+                try:
+                    fp = os.path.abspath(FILE_PATH)
+                    subprocess.Popen(['pview', '-i', fp] + fpa)
+                except:
+                    print('ERROR: Can\'t execute pview')
+    except Exception as exc:
+        errors.append('ERR_UNEXPECTED')
+        # print('\n'.join(format_tb(exc.__traceback__)))
+        print_exc()
+    # Clearing the scene.
+    # (!) Possible Incomplete.
+    # Whenever we are deleted our copy of the scene,
+    # Blender won't to delete other objects, created with the scene, so
+    # we should do it by hand. I recommend to save the .blend file before
+    # exporting and reload it after.
+    bpy.ops.scene.delete()
+    for data in old_data:
+        for obj in data:
+            if obj not in old_data[data]:
+                # print("{} has {} users. Proceeding to clear.".format(obj.name, obj.users))
+                obj.user_clear()
+                try:
+                    data.remove(obj, do_unlink = True)
+                except:
+                    print('WARNING: Can\'t delete', obj, 'from', data)
+    return errors
+
+
+def write_out(
+        fname,
+        anims,  # anim dict
+        from_actions,
+        uv_img_as_tex,
+        sep_anim,
+        anim_only,
+        copy_tex,
+        texture_path,
+        tbs,
+        tex_processor,
+        b_layers, # get_bake_dict
+        autoselect,
+        merge_actor,
+        apply_modifiers,
+        pview,
+        loop_normals,
+        export_pbs,
+        force_export_vertex_colors,
+        objects=None
+):
     global FILE_PATH, ANIMATIONS, ANIMS_FROM_ACTIONS, EXPORT_UV_IMAGE_AS_TEXTURE, \
         COPY_TEX_FILES, TEX_PATH, SEPARATE_ANIM_FILE, ANIM_ONLY, \
         STRF, CALC_TBS, TEXTURE_PROCESSOR, BAKE_LAYERS, \
         MERGE_ACTOR_MESH, APPLY_MOD, PVIEW, USED_MATERIALS, USED_TEXTURES, \
-        USE_LOOP_NORMALS, EXPORT_PBS, FORCE_EXPORT_VERTEX_COLORS
+        USE_LOOP_NORMALS, EXPORT_PBS, FORCE_EXPORT_VERTEX_COLORS, AUTOSELECT
     importlib.reload(sys.modules[lib_name + '.texture_processor'])
     importlib.reload(sys.modules[lib_name + '.utils'])
     errors = []
@@ -1506,19 +1774,23 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
     ANIMS_FROM_ACTIONS = from_actions
     EXPORT_UV_IMAGE_AS_TEXTURE = uv_img_as_tex
     SEPARATE_ANIM_FILE = sep_anim
-    ANIM_ONLY = a_only
+    ANIM_ONLY = anim_only
     CALC_TBS = tbs
+    AUTOSELECT = autoselect
     COPY_TEX_FILES = copy_tex
-    TEX_PATH = t_path
+    TEX_PATH = texture_path
     TEXTURE_PROCESSOR = tex_processor
     BAKE_LAYERS = b_layers
-    MERGE_ACTOR_MESH = m_actor
-    APPLY_MOD = apply_m
+    MERGE_ACTOR_MESH = merge_actor
+    APPLY_MOD = apply_modifiers
     PVIEW = pview
     USE_LOOP_NORMALS = loop_normals
     EXPORT_PBS = export_pbs
     FORCE_EXPORT_VERTEX_COLORS = force_export_vertex_colors
     s_acc = '%.6f'
+
+    if AUTOSELECT:
+        bpy.ops.object.select_all(action='SELECT')
 
     def str_f(x):
         return s_acc % x

@@ -77,8 +77,8 @@ class YABEEProperty(bpy.types.PropertyGroup):
         description = "Export all textures as MODULATE or bake texture layers",
         items = (
             ('PANDA', "Panda", "Use egg-trans to calculate TBS (Need installed Panda3D)."),
-                 ('BLENDER', "Blender", "Use Blender to calculate TBS"),
-                 ('NO', "No", "Do not generate TBS.")
+            ('BLENDER', "Blender", "Use Blender to calculate TBS"),
+            ('NO', "No", "Do not generate TBS.")
         ),
         default = 'NO',
     )
@@ -117,6 +117,18 @@ class YABEEProperty(bpy.types.PropertyGroup):
         name = "Tex. path",
         description = "Path for the copied textures. Relative to the main EGG file dir",
         default = './tex',
+    )
+
+    opt_export_uv_name: BoolProperty(
+        name = "Export with custom UV name",
+        description = "<UV> blah",
+        default = False,
+    )
+
+    opt_autoselect: BoolProperty(
+        name = "Automatic selection",
+        description = "Automatically select all objects in the scene",
+        default = True,
     )
 
     opt_merge_actor: BoolProperty(
@@ -171,11 +183,11 @@ class YABEEProperty(bpy.types.PropertyGroup):
             row.template_list(
                 "UI_UL_list",
                 "anim_collection",
-                              self.opt_anim_list,
-                              "anim_collection",
-                              self.opt_anim_list,
-                              "active_index",
-                              rows = 2
+                self.opt_anim_list,
+                "anim_collection",
+                self.opt_anim_list,
+                "active_index",
+                rows = 2
             )
             col = row.column(align = True)
             col.operator("export.egg_anim_add", icon = 'ZOOM_IN', text = "")
@@ -214,6 +226,14 @@ class YABEEProperty(bpy.types.PropertyGroup):
                 box.row().prop(self, 'opt_tex_path')
             else:
                 layout.row().prop(self, 'opt_copy_tex_files')
+
+            # opt_export_uv_name
+            layout.row().prop(self, 'opt_export_uv_name')
+            if self.opt_export_uv_name:
+                # Todo: customize uv output name
+                pass
+
+            layout.row().prop(self, 'opt_autoselect')
             layout.row().prop(self, 'opt_merge_actor')
             layout.row().prop(self, 'opt_apply_modifiers')
             layout.row().prop(self, 'opt_pview')
@@ -221,6 +241,13 @@ class YABEEProperty(bpy.types.PropertyGroup):
 
             layout.row().prop(self, 'opt_export_pbs')
             layout.row().prop(self, 'opt_force_export_vertex_colors')
+
+    @property
+    def config_kwargs(self):
+        # kdict = dict()
+        # for k, v in self.__annotations__.items():
+        #     kdict[k] = getattr(self, k)
+        return {k: getattr(self, k) for k in self.__annotations__}
 
     def get_bake_dict(self):
         texture_bake_dict = {}
@@ -257,7 +284,17 @@ class YABEEProperty(bpy.types.PropertyGroup):
 
         return warns
 
+    def reset_defaults_new(self):
+        for k, v in self.__annotations__.items():
+            the_value = getattr(self, k)
+            self.property_unset(k)
+            print(f"default {the_value} - {k}")
+        while self.opt_anim_list.anim_collection[:]:
+            bpy.ops.export.egg_anim_remove('INVOKE_DEFAULT')
+        self.first_run = False
+
     def reset_defaults(self):
+        # C.scene.property_unset("x")
         self.opt_tex_proc = 'BAKE'
         self.opt_tbs_proc = 'NO'
         self.opt_bake_diffuse.export = True
@@ -277,7 +314,9 @@ class YABEEProperty(bpy.types.PropertyGroup):
         self.opt_separate_anim_files = True
         self.opt_anim_only = False
         self.opt_tex_path = './tex'
+        self.opt_autoselect = False
         self.opt_merge_actor = True
+        self.opt_use_loop_normals = False
         self.opt_apply_modifiers = True
         self.opt_pview = False
         self.opt_use_loop_normals = False
@@ -326,7 +365,7 @@ class ResetDefault(bpy.types.Operator):
     bl_label = "YABEE reset default settings"
 
     def execute(self, context):
-        context.scene.yabee_settings.reset_defaults()
+        context.scene.yabee_settings.reset_defaults_new()
         return {'FINISHED'}
 
 
@@ -374,25 +413,31 @@ class ExportPanda3DEGG(bpy.types.Operator, ExportHelper):
         import importlib
         importlib.reload(egg_writer)
         sett = context.scene.yabee_settings
-        errors = egg_writer.write_out(
-            self.filepath,
-            sett.opt_anim_list.get_anim_dict(),
-            sett.opt_anims_from_actions,
-            sett.opt_export_uv_as_texture,
-            sett.opt_separate_anim_files,
-            sett.opt_anim_only,
-            sett.opt_copy_tex_files,
-            sett.opt_tex_path,
-            sett.opt_tbs_proc,
-            sett.opt_tex_proc,
-            sett.get_bake_dict(),
-            sett.opt_merge_actor,
-            sett.opt_apply_modifiers,
-            sett.opt_pview,
-            sett.opt_use_loop_normals,
-            sett.opt_export_pbs,
-            sett.opt_force_export_vertex_colors
-        )
+
+
+        errors = egg_writer.write_out_new(self.filepath, sett)
+        # errors = egg_writer.write_out(
+        #     self.filepath,
+        #     sett.opt_anim_list.get_anim_dict(),
+        #     sett.opt_anims_from_actions,
+        #     sett.opt_export_uv_as_texture,
+        #     sett.opt_separate_anim_files,
+        #     sett.opt_anim_only,
+        #     sett.opt_copy_tex_files,
+        #     sett.opt_tex_path,
+        #     sett.opt_tbs_proc,
+        #     sett.opt_tex_proc,
+        #     sett.get_bake_dict(),
+        #     sett.opt_autoselect,
+        #     # sett.opt_apply_object_transform,
+        #     sett.opt_merge_actor,
+        #     sett.opt_apply_modifiers,
+        #     # opt_apply_collide_tag
+        #     sett.opt_pview,
+        #     sett.opt_use_loop_normals,
+        #     sett.opt_export_pbs,
+        #     sett.opt_force_export_vertex_colors
+        # )
 
         if errors:
             rep_msg = ''
@@ -478,9 +523,7 @@ def unregister():
             unregister_class(cls)
             bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
 
-
     del (__builtins__['p3d_egg_export'])
-
 
 
 if __name__ == "__main__":

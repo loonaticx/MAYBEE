@@ -16,6 +16,8 @@ BAKE_TYPES = {
 
 class PbrTextures:
     def __init__(self, obj_list, uv_img_as_texture, copy_tex, file_path, tex_path):
+        # Gagaga this is HARAM!!!
+        self.yabee_conf = bpy.context.scene.yabee_settings
         self.obj_list = obj_list[:]
         self.uv_img_as_texture = uv_img_as_texture
         self.copy_tex = copy_tex
@@ -99,7 +101,9 @@ class PbrTextures:
                                             print("INFO: Adding UV Map from the material:", obj.name)
                                             a = [uv for uv in obj.data.uv_layers if uv.active]
                                             uv_map = [x.name for x in a]
-                                            scalars.append(('uv-name', uv_map.pop()))
+                                            uvmap = uv_map.pop()
+                                            if self.yabee_conf.opt_export_uv_name:
+                                                scalars.append(('uv-name', uvmap))
 
                                         # we have to crawl the links again
                                         # we finally found the uv-map connected to the texture we want
@@ -107,12 +111,14 @@ class PbrTextures:
                                         for link2 in mat.node_tree.links:
                                             if link2.to_node == textureNode:
                                                 uvNode = link2.from_node
-                                                if hasattr(uvNode, 'uv_map'):
+                                                if hasattr(uvNode, 'uv_map') and self.yabee_conf.opt_export_uv_name:
                                                     scalars.append(('uv-name', uvNode.uv_map))
                                                 else:
                                                     a = [uv for uv in obj.data.uv_layers if uv.active]
                                                     uv_map = [x.name for x in a]
-                                                    scalars.append(('uv-name', uv_map.pop()))
+                                                    uvmap = uv_map.pop()
+                                                    if self.yabee_conf.opt_export_uv_name:
+                                                        scalars.append(('uv-name', uvmap))
 
                                         t_path = textureNode.image.filepath
                                         if self.copy_tex:
@@ -197,6 +203,8 @@ class PbrTextures:
 class TextureBaker:
     # TODO: Refactoring in progress
     def __init__(self, obj_list, file_path, tex_path):
+        # Gagaga this is HARAM!!!
+        self.yabee_conf = bpy.context.scene.yabee_settings
         self.saved_objs = {}
         self.rendered_images = {}
         self.obj_list = obj_list[:]
@@ -337,7 +345,7 @@ class TextureBaker:
                             'transform': []
                         }
                         tex_list[key]['scalars'].append(('envtype', envtype))
-                        if uv_name:
+                        if uv_name and self.yabee_conf.opt_export_uv_name:
                             tex_list[key]['scalars'].append(('uv-name', uv_name))
                         if envtype in ('GLOW', 'GLOSS'):
                             tex_list[key]['scalars'].append(('alpha-file', '"' + img_path + '"'))
