@@ -77,8 +77,8 @@ class YABEEProperty(bpy.types.PropertyGroup):
         description = "Export all textures as MODULATE or bake texture layers",
         items = (
             ('PANDA', "Panda", "Use egg-trans to calculate TBS (Need installed Panda3D)."),
-                 ('BLENDER', "Blender", "Use Blender to calculate TBS"),
-                 ('NO', "No", "Do not generate TBS.")
+            ('BLENDER', "Blender", "Use Blender to calculate TBS"),
+            ('NO', "No", "Do not generate TBS.")
         ),
         default = 'NO',
     )
@@ -171,11 +171,11 @@ class YABEEProperty(bpy.types.PropertyGroup):
             row.template_list(
                 "UI_UL_list",
                 "anim_collection",
-                              self.opt_anim_list,
-                              "anim_collection",
-                              self.opt_anim_list,
-                              "active_index",
-                              rows = 2
+                self.opt_anim_list,
+                "anim_collection",
+                self.opt_anim_list,
+                "active_index",
+                rows = 2
             )
             col = row.column(align = True)
             col.operator("export.egg_anim_add", icon = 'ZOOM_IN', text = "")
@@ -478,9 +478,7 @@ def unregister():
             unregister_class(cls)
             bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
 
-
     del (__builtins__['p3d_egg_export'])
-
 
 
 if __name__ == "__main__":

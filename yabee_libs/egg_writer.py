@@ -82,7 +82,6 @@ class Group:
         for child in self.children:
             child.update_joints_data(actor_data_list)
 
-
     def check_parenting(self, p, o, obj_list):
         # 0 - Not
         # 1 - Object to object
@@ -105,8 +104,6 @@ class Group:
                 and p and o.parent_bone == p.name:
             return 3
         return 0
-
-
 
     def make_hierarchy_from_list(self, obj_list):
         """
@@ -1634,11 +1631,11 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
             if obj.yabee_name in selected_obj:
                 for mod in obj.modifiers:
                     if mod and mod.type == 'ARMATURE' \
-                            and mod.object not in included_armature\
+                            and mod.object not in included_armature \
                             and mod.object not in obj_list:
                         included_armature.append(mod.object)
                 if obj.parent and obj.parent_type == 'BONE' \
-                        and obj.parent not in included_armature\
+                        and obj.parent not in included_armature \
                         and obj.parent not in obj_list:
                     included_armature.append(obj.parent)
 
@@ -1682,24 +1679,24 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
                     anim_collectors.append(ac)
 
             fpa = []
-            for ac in anim_collectors:
+            for anim_collector in anim_collectors:
                 if not SEPARATE_ANIM_FILE:
                     if ANIM_ONLY:
                         file.write('<CoordinateSystem> { Z-up } \n')
-                    file.write(ac.get_full_egg_str())
+                    file.write(anim_collector.get_full_egg_str())
                 else:
-                    a_path = FILE_PATH
-                    if a_path[-4:].upper() == '.EGG':
-                        a_path = a_path[:-4] + '-' + ac.name + a_path[-4:]
+                    anim_path = FILE_PATH
+                    if anim_path[-4:].upper() == '.EGG':
+                        anim_path = anim_path[:-4] + '-' + anim_collector.name + anim_path[-4:]
                     else:
-                        a_path = a_path + '-' + ac.name + '.egg'
-                    a_egg_str = ac.get_full_egg_str()
+                        anim_path = anim_path + '-' + anim_collector.name + '.egg'
+                    a_egg_str = anim_collector.get_full_egg_str()
                     if len(a_egg_str) > 0:
-                        a_file = open(a_path, 'w')
+                        a_file = open(anim_path, 'w')
                         a_file.write('<CoordinateSystem> { Z-up } \n')
-                        a_file.write(ac.get_full_egg_str())
+                        a_file.write(anim_collector.get_full_egg_str())
                         a_file.close()
-                        fpa.append(a_path)
+                        fpa.append(anim_path)
 
             if not ANIM_ONLY or not SEPARATE_ANIM_FILE:
                 file.close()
