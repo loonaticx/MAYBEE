@@ -30,8 +30,8 @@ EXPORT_PBS = False
 FORCE_EXPORT_VERTEX_COLORS = False
 USE_LOOP_NORMALS = False
 STRF = lambda x: '%.6f' % x
-USED_MATERIALS = None
-USED_TEXTURES = None
+USED_MATERIALS = set()  # type: set
+USED_TEXTURES = {}  # type: dict
 
 # const used to pack string array into StringProperty
 NAME_SEPARATOR = "\1"
