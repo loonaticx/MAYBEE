@@ -53,7 +53,7 @@ CALC_TBS = 'PANDA'
 # 'BAKE' mode
 TEXTURE_PROCESSOR = 'BAKE'
 
-# type: (size, do_bake)
+# bakeType: (size, do_bake)
 BAKE_LAYERS = {
     'diffuse': (512, True),
     'normal': (512, True),

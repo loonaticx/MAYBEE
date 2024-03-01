@@ -68,7 +68,7 @@ class Group:
                 self._yabee_object = EGGBaseObjectData(self.object)
 
     def update_joints_data(self, actor_data_list=None):
-        if actor_data_list == None:
+        if actor_data_list is None:
             actor_data_list = []
             hierarchy_to_list(self, actor_data_list, base_filter = EGGActorObjectData)
 
@@ -89,19 +89,16 @@ class Group:
         # 3 - Object to Bone
         if o.__class__ == bpy.types.Bone and not o.parent:
             return 0
-        if p.__class__ != bpy.types.Bone and o.parent == p \
-                and not (p and p.type == 'ARMATURE' and o.parent_bone):
+        if p.__class__ != bpy.types.Bone and o.parent == p and not (p and p.type == 'ARMATURE' and o.parent_bone):
             return 1
         if not p and (str(o.parent) not in map(str, obj_list)):
             return 1
-        if p and p.__class__ == bpy.types.Bone \
-                and o.__class__ == bpy.types.Bone and o.parent == p:
+        if p and p.__class__ == bpy.types.Bone and o.__class__ == bpy.types.Bone and o.parent == p:
             return 2
         # ACHTUNG!!! Be careful: If we have two armatures with the
         # same bones name and object, attached to it,
         # then we can get unexpected results!
-        if o.__class__ != bpy.types.Bone and o.parent_type == 'BONE' \
-                and p and o.parent_bone == p.name:
+        if o.__class__ != bpy.types.Bone and o.parent_type == 'BONE' and p and o.parent_bone == p.name:
             return 3
         return 0
 
@@ -183,7 +180,8 @@ class Group:
                 # Are we an actor and is this related to our nodes?
                 if self.object.type == 'ARMATURE' or (
                         self.object.type == 'MESH' and (
-                        self.object.data.shape_keys and len(self.object.data.shape_keys.key_blocks) > 1)
+                        self.object.data.shape_keys and
+                        len(self.object.data.shape_keys.key_blocks) > 1)
                 ):
                     egg_str.append('%s<Dart> { 1 }\n' % ('  ' * (level + 1)))
 
@@ -221,10 +219,9 @@ class EGGArmature(Group):
 
         if self.object:
             egg_str += '%s<Joint> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name))
+            vref = {}
             if self.object.yabee_name in list(vrefs.keys()):
                 vref = vrefs[self.object.yabee_name]
-            else:
-                vref = {}
 
             joint = EGGJointObjectData(self.object, vref, arm_owner)
             for line in joint.get_full_egg_str().splitlines():
@@ -801,11 +798,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
     def collect_poly_rgba(self, face, attributes):
         # is this suppose to behave similarly to collect_poly_mref ?
         if face.material_index < len(self.obj_ref.data.materials):
-            mat = self.obj_ref.data.materials[face.material_index]
-            if not mat:
-                return attributes
-            if mat:
-                return attributes
+            return attributes
 
     def collect_poly_bface(self, face, attributes):
         """
@@ -958,10 +951,12 @@ class EGGAnimJoint(Group):
         @param obj_list: tuple or list of blender's objects.
         """
         for obj in obj_list:
-            if ((obj.parent == self.object) or
-                    ((self.object == None) and
+            if (
+                    (obj.parent == self.object) or
+                    ((self.object is None) and
                      (str(obj.parent) not in map(str, obj_list)) and
-                     (str(obj) not in [str(child.object) for child in self.children]))):
+                     (str(obj) not in [str(child.object) for child in self.children]))
+            ):
                 try:
                     group = self.__class__(obj)
                 except:
@@ -1037,7 +1032,7 @@ class AnimCollector:
         for obj in obj_list:
             if obj.__class__ != bpy.types.Bone:
                 if obj.type == 'MESH':
-                    if ((obj.data.shape_keys) and (len(obj.data.shape_keys.key_blocks) > 1)):
+                    if obj.data.shape_keys and (len(obj.data.shape_keys.key_blocks) > 1):
                         if obj.yabee_name not in list(self.obj_anim_ref.keys()):
                             self.obj_anim_ref[obj.yabee_name] = {}
                         self.obj_anim_ref[obj.yabee_name]['morph'] = self.collect_morph_anims(obj)
@@ -1058,7 +1053,7 @@ class AnimCollector:
         @param obj: Blender's object for which need to collect an animation data
         """
         keys = {}
-        if ((obj.data.shape_keys) and (len(obj.data.shape_keys.key_blocks) > 1)):
+        if obj.data.shape_keys and (len(obj.data.shape_keys.key_blocks) > 1):
             current_frame = bpy.context.scene.frame_current
             anim_dict = {}
             for frame in range(self.start_f, self.stop_f):
@@ -1346,15 +1341,15 @@ def get_egg_materials_str(object_names=None):
 # -----------------------------------------------------------------------
 #                   Preparing & auxiliary functions
 # -----------------------------------------------------------------------
-def hierarchy_to_list(obj, list, base_filter=None):
+def hierarchy_to_list(obj, hierarchy, base_filter=None):
     if base_filter:
         if obj._yabee_object.__class__ == base_filter:
-            list.append(obj)
+            hierarchy.append(obj)
     else:
-        list.append(obj)
+        hierarchy.append(obj)
     for child in obj.children:
-        if child not in list:
-            hierarchy_to_list(child, list, base_filter)
+        if child not in hierarchy:
+            hierarchy_to_list(child, hierarchy, base_filter)
 
 
 def merge_objects():
@@ -1655,7 +1650,7 @@ def write_out(fname, anims, from_actions, uv_img_as_tex, sep_anim, a_only,
 
             # === write egg data ===
             print('WRITE main EGG to %s' % os.path.abspath(FILE_PATH))
-            if ((not ANIM_ONLY) or (not SEPARATE_ANIM_FILE)):
+            if (not ANIM_ONLY) or (not SEPARATE_ANIM_FILE):
                 file = open(FILE_PATH, 'w')
             if not ANIM_ONLY:
                 file.write('<CoordinateSystem> { Z-up } \n')

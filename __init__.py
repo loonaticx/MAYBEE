@@ -249,10 +249,10 @@ class YABEEProperty(bpy.types.PropertyGroup):
                          '"Armature" or "Curve" objects.')
         for name, param in self.opt_anim_list.get_anim_dict().items():
             if param[0] == param[1]:
-                warns.append(('Animation "%s" has same "from" and "to" frames\n' + \
-                              'Keep in mind that "To frame" value is exclusive.\n' + \
-                              'It means that in this case your animation contains\n' + \
-                              'zero of frames. YABEE will automatically add one frame\n' + \
+                warns.append(('Animation "%s" has same "from" and "to" frames\n' +
+                              'Keep in mind that "To frame" value is exclusive.\n' +
+                              'It means that in this case your animation contains\n' +
+                              'zero of frames. YABEE will automatically add one frame\n' +
                               'to the "to" value of "%s" animation.') % (name, name))
 
         return warns
