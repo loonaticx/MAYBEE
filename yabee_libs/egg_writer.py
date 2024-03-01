@@ -627,7 +627,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
             # if material has no texture:
             for mat in self.obj_ref.data.materials:
                 nodeTree = mat.node_tree
-                if nodeTree.nodes:
+                if nodeTree and nodeTree.nodes:
                     for pandaShaderNode in nodeTree.links:
                         if pandaShaderNode.to_node.name == "Material Output":
                             attributes.append('  <RGBA> { 1 1 1 1 }')
