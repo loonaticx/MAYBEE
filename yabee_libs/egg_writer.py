@@ -168,7 +168,7 @@ class Group:
             lvlSpace = '  ' * level
 
             # SCALAR TAGS
-            scalar_tags = ('collide-mask', 'into-collide-mask', 'from-collide-mask', 'fps', 'bin', 'alpha', 'occluder', 'draw-order', 'scroll_u', 'scroll_v', 'decal')
+            scalar_tags = ('collide-mask', 'into-collide-mask', 'from-collide-mask', 'fps', 'bin', 'alpha', 'occluder', 'draw_order', 'scroll_u', 'scroll_v', 'decal')
             for stag in scalar_tags:
                 if stag in self.object:
                     egg_str += tag(f'<Scalar> {stag} {{ {self.object.get(stag)} }}')
