@@ -154,6 +154,41 @@ class Group:
         for child in self.children:
             child.print_hierarchy(level + 1)
 
+    def get_tags_egg_str(self, level = 0) -> str:
+        """ Create and return <Tag> string from Blender's Custom properties
+        @param level: indent level.
+        @return: the EGG tags string.
+        """
+        egg_str = ''
+
+        def tag(tag_string: str) -> str:
+            return f'{lvlSpace}{tag_string}\n'
+
+        if self.object:
+            lvlSpace = '  ' * level
+
+            # SCALAR TAGS
+            scalar_tags = ('collide-mask', 'into-collide-mask', 'from-collide-mask', 'fps', 'bin', 'alpha', 'occluder', 'draw-order', 'scroll_u', 'scroll_v', 'decal')
+            for stag in scalar_tags:
+                if stag in self.object:
+                    egg_str += tag(f'<Scalar> {stag} {{ {self.object.get(stag)} }}')
+                    
+            # these individual tags all need one value, but their tag name isnt Scalar, its the name itself.
+            single_value_tags = ('ObjectType', 'Collide', 'Billboard', 'Switch', 'DCS')
+            for svtag in single_value_tags:
+                if svtag in self.object:
+                    egg_str += tag(f'<{svtag}> {{ {self.object.get(svtag)} }}')
+                    
+            # below here are special tags that don't follow any pattern!. yay!
+            if 'SwitchCondition' in self.object:
+                switch_condition: tuple[int, int] = self.object.get('SwitchCondition')
+                egg_str += tag(f'<SwitchCondition> {{ <Distance> {{ {switch_condition[0]} {switch_condition[1]} 1.0 <Vertex> {{ 0 0 0 }} }} }}')
+        
+            if 'File' in self.object and self.object.type == 'EMPTY':
+                egg_str += tag(f'<Instance> {{ <File> {{ {self.object.get("File")} }} }}')
+
+        return egg_str
+
     def get_full_egg_str(self, level=0):
         return ''.join(self.get_full_egg_str_arr(level))
 
@@ -176,7 +211,8 @@ class Group:
                 egg_str.append('%s<Joint> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name)))
             else:
                 egg_str.append('%s<Group> %s {\n' % ('  ' * level, eggSafeName(self.object.yabee_name)))
-
+                tags = self.get_tags_egg_str(level + 1)
+                egg_str.append(tags)
                 # Are we an actor and is this related to our nodes?
                 if self.object.type == 'ARMATURE' or (
                         self.object.type == 'MESH' and (
@@ -623,11 +659,12 @@ class EGGMeshObjectData(EGGBaseObjectData):
         else:
             # if material has no texture:
             for mat in self.obj_ref.data.materials:
-                nodeTree = mat.node_tree
-                if nodeTree and nodeTree.nodes:
-                    for pandaShaderNode in nodeTree.links:
-                        if pandaShaderNode.to_node.name == "Material Output":
-                            attributes.append('  <RGBA> { 1 1 1 1 }')
+                if mat:
+                    nodeTree = mat.node_tree
+                    if nodeTree and nodeTree.nodes:
+                        for pandaShaderNode in nodeTree.links:
+                            if pandaShaderNode.to_node.name == "Material Output":
+                                attributes.append('  <RGBA> { 1 1 1 1 }')
         return attributes
 
     def collect_vtx_uv(self, vidx, ividx, attributes):
