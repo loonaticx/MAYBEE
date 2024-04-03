@@ -439,7 +439,7 @@ class EGGMeshObjectData(EGGBaseObjectData):
                     vtx_list.append(vertex)
         vtx_list = set(vtx_list)
 
-        if self.obj_ref.data.use_auto_smooth:
+        if hasattr(self.obj_ref.data, "use_auto_smooth") and self.obj_ref.data.use_auto_smooth:
             sharp_edges = [edge.key for edge in self.obj_ref.data.edges if edge.use_edge_sharp]
             for poly_index, polygon in enumerate(self.obj_ref.data.polygons):
                 for poly_edge in polygon.edge_keys:
