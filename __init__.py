@@ -7,7 +7,7 @@ from .yabee_libs import egg_writer
 bl_info = {
     "name": "Panda3D Egg Exporter (MAYBEE)",
     "blender": (2, 80, 0),
-    "version": (2, 1, 1),
+    "version": (2, 2, 0),
     "location": "File > Import-Export",
     "description": ("Export to Panda3D EGG: meshes, uvs, materials, textures, "
                     "armatures, animation and curves"),
