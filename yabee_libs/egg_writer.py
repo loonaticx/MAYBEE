@@ -185,6 +185,40 @@ class Group:
                 ):
                     egg_str.append('%s<Dart> { 1 }\n' % ('  ' * (level + 1)))
 
+                # Tags that are formatted as <Scalar> tagName { tagValue }
+                scalar_attribs = [
+                    'collide-mask', 'into-collide-mask',
+                    'from-collide-mask', 'bin', 'alpha',
+                    'draw-order', 'decal', 'fps', 'blend',
+                    'visibility',
+                ]
+                # Tags that are formatted as <tagName> { tagValue }
+                single_attribs = [
+                    'collide', 'billboard',
+                    'dart', 'model',
+                    'switch', 'dcs',
+                ]
+                # Tags commonly used in the <Tag> tagName { tagValue } format.
+                # Most egg importers do not designate which attributes are <Tag>
+                # values, so we have to guess based on the most commonly used custom <Tag>s.
+                tag_attribs = [
+                    'cam',
+                ]
+
+                for key in self.object.keys():
+                    if key.lower() in scalar_attribs:
+                        egg_str.append('%s<Scalar> %s { %s }\n' % ('  ' * (level + 1), key, self.object[key]))
+                    if key.lower() in single_attribs:
+                        egg_str.append('%s<%s> { %s }\n' % ('  ' * (level + 1), key, self.object[key]))
+                    if key.lower() in tag_attribs:
+                        egg_str.append('%s<Tag> %s { %s }\n' % ('  ' * (level + 1), key, self.object[key]))
+
+                    # Accounting for Loonaticx's blender-egg-importer
+                    # adding a delimiter to the key ObjectType when
+                    # a single object holds multiple ObjectType tags.
+                    if 'objecttype' in key.lower():
+                        egg_str.append('%s<ObjectType> { %s }\n' % ('  ' * (level + 1), self.object[key]))
+
             if self._yabee_object:
                 for line in self._yabee_object.get_full_egg_str().splitlines():
                     egg_str.append('%s%s\n' % ('  ' * (level + 1), line))
