@@ -26,3 +26,12 @@ The following are currently not supported/implemented by MAYBEE:
 - Properties/tags
 - Texture baking via Cycles
 - Non-Shader Mode for Materials & Textures
+
+# Installation
+The add-on can be installed from the .zip file found in the [latest release](https://github.com/loonaticx/MAYBEE/releases) by following the [Blender documentation](https://docs.blender.org/manual/en/latest/editors/preferences/addons.html#add-on-settings).
+
+# Usage
+To export a model as an Egg:
+- Ensure the add-on is enabled
+- Select the desired objects in the 3D view
+- From the navigation bar, select File -> Export -> Panda3D (.egg)
